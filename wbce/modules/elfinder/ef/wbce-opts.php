@@ -74,6 +74,7 @@ if (!function_exists('elfinder_wbce_build_opts')) {
         $sForbiddenRegex = "/(\." . str_replace(",", "|\.", RENAME_FILES_ON_UPLOAD) . ")$/";
 
         $noup = $norn = $norm = $nomk = $nopa = $noco = $nodu = $noex = $nore = '';
+        $noar = $noput = $nochm = '';
         if ($admin->get_permission('media_upload') === false) {
             $noup = 'upload';
             $nopa = 'paste';
@@ -81,6 +82,12 @@ if (!function_exists('elfinder_wbce_build_opts')) {
             $nodu = 'duplicate';
             $noex = 'extract';
             $nore = 'resize';
+            // These also create or alter files but were missing from the gate,
+            // so a view-only user (media_view without media_upload) could still
+            // create archives, overwrite file contents or change permissions.
+            $noar  = 'archive';
+            $noput = 'put';
+            $nochm = 'chmod';
         }
         if ($admin->get_permission('media_rename') === false) {
             $norn = 'rename';
@@ -112,6 +119,7 @@ if (!function_exists('elfinder_wbce_build_opts')) {
             'disabled' => array(
                 'hide', 'empty', 'netmount', 'help', 'preference', 'mkfile', 'edit',
                 $noup, $norn, $norm, $nomk, $nopa, $noco, $nodu, $noex, $nore,
+                $noar, $noput, $nochm,
             ),
         );
 
