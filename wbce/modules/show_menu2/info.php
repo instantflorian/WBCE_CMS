@@ -25,7 +25,7 @@
 $module_directory   = 'show_menu2';
 $module_name        = 'show_menu2';
 $module_function    = 'snippet';
-$module_version     = '4.16.1';
+$module_version     = '4.16.2';
 $module_platform    = '1.7.0';
 $module_author      = 'Brodie Thiesfield, WBCE Dev Team';
 $module_license     = 'GNU General Public License v2';
@@ -34,6 +34,13 @@ $module_level       = 'core';
 
 /* LATEST CHANGES (see HISTORY.md for a reconstruction attempt of the CHANGELOG)
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * v. 4.16.2   2026-10-01  Fernando & Rik van Loenhout
+ *             'registered' pages are no longer listed for logged-in users
+ *             outside the page's viewing groups/users - for them the link
+ *             only led to "Sorry, you do not have permissions to view this
+ *             page". Visitors who aren't logged in still see them (the link
+ *             leads to the login), as before.
  *
  * v. 4.16.1   2026-09-06  Christian M. Stefan
  *             Fixed a PHP 8.1+ deprecation notice ("Using null as the key

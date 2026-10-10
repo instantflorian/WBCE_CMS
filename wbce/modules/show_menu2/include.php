@@ -233,8 +233,10 @@ function show_menu2(
                     continue;
                 }
 
-                // 3. all pages not visible to this user (unless always visible to registered users) are ignored
-                elseif (!$wb->page_is_visible($page) && $page['visibility'] != 'registered') {
+                // 3. all pages not visible to this user are ignored - except 'registered' pages for
+                //    visitors who aren't logged in: those stay listed, the link leads to the login.
+                //    A logged-in user outside the viewing groups/users would only get "no permission".
+                elseif (!$wb->page_is_visible($page) && ($page['visibility'] != 'registered' || $wb->isLoggedIn())) {
                     continue;
                 }
 
