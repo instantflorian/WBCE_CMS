@@ -1,5 +1,21 @@
 # Version History
 
+## 1.7.1 *(Rik van Loenhout, 10 October 2026)*
+
+- Security: the five standalone AJAX endpoints did not enforce the per-tool
+  permission. `ajax/ajax_delete_row.php`, `ajax/ajax_toggle_state.php` and
+  `ajax/ajax_dragdrop.php` checked `get_permission('outputfilter_dashboard',
+  'module')`, but admin-tool rights live in `MODULE_PERMISSIONS` under the
+  `outputfilter_dashboard_tool` key, so the check never matched the deny entry
+  and let in backend users who were explicitly denied this tool.
+  `ajax_save_css.php` and `ajax_save_filter.php` checked only the generic
+  `admintools` area right. All five now require
+  `is_authenticated() && get_permission('admintools') &&
+  get_permission('outputfilter_dashboard_tool', 'module')`, matching the gate
+  in `admin/admintools/tool.php`. CSRF was already covered by the IDKEY token on
+  every endpoint (no change needed there). See
+  `_docs/wbce/outputfilter_dashboard/security-fixes-1.7.1.md`.
+
 ## 1.7.0 *(Christian M. Stefan, 18 August – 11 September 2026)*
 
 - Documentation reorganised. `README.md` was a 1665-line manual; it is now a

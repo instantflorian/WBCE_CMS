@@ -62,7 +62,7 @@ if(!isset($_POST['action']) || !isset($_POST['id']) )
     // check if user has permissions to access the outputfilter_dashboard module
     require_once(WB_PATH.'/framework/class.admin.php');
     $admin = new admin('admintools', 'admintools', false, false);
-    if (!($admin->is_authenticated() && $admin->get_permission('outputfilter_dashboard', 'module'))) {
+    if (!($admin->is_authenticated() && $admin->get_permission('admintools') && $admin->get_permission('outputfilter_dashboard_tool', 'module'))) {
         $aJsonRespond['message'] = 'insuficcient rights';
         exit(json_encode($aJsonRespond));
     }

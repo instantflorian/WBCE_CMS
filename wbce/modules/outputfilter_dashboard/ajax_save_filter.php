@@ -24,7 +24,13 @@ $admin = new Admin('admintools', 'admintools', false);
 header('Content-Type: application/json; charset=utf-8');
 
 // ── Permission check ──────────────────────────────────────────────────────────
-if (!$admin->get_permission('admintools')) {
+// Must match the gate in admin/admintools/tool.php: the admin-tools area right
+// AND the per-tool right. The tool right is stored as "<dir>_tool" in
+// MODULE_PERMISSIONS, so checking the bare module name ('outputfilter_dashboard')
+// never matches the deny entry and lets users who are denied this tool through.
+if (!($admin->is_authenticated()
+      && $admin->get_permission('admintools')
+      && $admin->get_permission('outputfilter_dashboard_tool', 'module'))) {
     http_response_code(403);
     (new Alerts(false))->toast('MESSAGE:GENERIC_SECURITY_ACCESS', 'error');
     exit(json_encode(['ok' => false]));

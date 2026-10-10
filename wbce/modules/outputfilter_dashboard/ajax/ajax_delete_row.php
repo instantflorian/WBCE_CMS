@@ -54,7 +54,7 @@ if(is_readable($sConfigFile = '../../../config.php')) {
 // check if user has permissions to access the outputfilter_dashboard module
 require WB_PATH.'/framework/class.admin.php';
 $admin = new admin('admintools', 'admintools', false, false);
-if (!($admin->is_authenticated() && $admin->get_permission('outputfilter_dashboard', 'module'))) {
+if (!($admin->is_authenticated() && $admin->get_permission('admintools') && $admin->get_permission('outputfilter_dashboard_tool', 'module'))) {
     $aRspnd ['message'] = 'insuficcient privileges';
     exit(json_encode($aRspnd));
 }
