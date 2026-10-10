@@ -13,7 +13,7 @@
 $module_directory   = 'jsadmin';
 $module_name        = 'Javascript Admin';
 $module_function    = 'tool';
-$module_version     = '2.0.1';
+$module_version     = '2.0.2';
 $module_platform    = '1.7.0';
 $module_author      = 'Stepan Riha, Swen Uth, BerndJM, Christian M. Stefan';
 $module_license     = 'BSD License';
@@ -23,6 +23,11 @@ $module_level       = 'core';
 
 /**
  * Version history
+ *
+ * 2.0.2 - security: removed move_to.php (unused since 2.0.0; GET write endpoint without
+ *         FTAN that also let a page editor reorder sections of pages they have no rights
+ *         on). upgrade.php deletes the stale file on existing installs.
+ *         tool.php: form action no longer echoes the raw REQUEST_URI.
  *
  * 2.0.1 - multi-driver SQL corrections (MySQL/SQLite) as preparation for
  *         experimental SQLite readiness

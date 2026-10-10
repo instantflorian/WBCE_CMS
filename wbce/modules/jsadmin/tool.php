@@ -51,7 +51,7 @@ if (isset($_POST['save_settings'])) {
         $ajax_order_sections = (bool) get_setting('mod_jsadmin_ajax_order_sections', true);
     ?>
 
-    <form id="jsadmin_form" name="store_settings" style="margin-top: 1em; display: true;" action="<?=$_SERVER['REQUEST_URI']; ?>" method="post">
+    <form id="jsadmin_form" name="store_settings" style="margin-top: 1em; display: true;" action="<?=htmlspecialchars($returnUrl); ?>" method="post">
         <?=$admin->getFTAN(); ?>
 
         <div class="cp-settings">
