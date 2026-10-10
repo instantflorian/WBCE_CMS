@@ -24,7 +24,7 @@ foreach($c as $campaign => $data) {
 	foreach ($data as $content => $val) {
 	  if(stripos($content,"Not identified") === false) {
 		print ( '<div class="full">');
-		print ( '<h3>'.$campaign.' -> '.$content.'</h3>');
+		print ( '<h3>'.htmlspecialchars($campaign).' -> '.htmlspecialchars($content).'</h3>');
 		
 		print ( '<table class="res" width="100%" border="0" cellpadding="5" cellspacing="0">' );
 		print ( '<tr>');	
@@ -40,9 +40,9 @@ foreach($c as $campaign => $data) {
 		print ( '<tr>');
 		foreach ($val as $medium => $detail) {
 			print ( '<tr>');	
-			print ( '<td>'.$detail['source'].'</td>');	
-			print ( '<td>'.$medium.'</td>');	
-			print ( '<td style="white-space:nowrap;">'.$content.'</td>');	
+			print ( '<td>'.htmlspecialchars($detail['source']).'</td>');	
+			print ( '<td>'.htmlspecialchars($medium).'</td>');	
+			print ( '<td style="white-space:nowrap;">'.htmlspecialchars($content).'</td>');	
 			print ( '<td style="text-align:center;">'.fdate($detail['first']).'</td>');	
 			print ( '<td style="text-align:center;">'.fdate($detail['last']).'</td>');	
 			print ( '<td style="text-align:center;">'.$detail['totalcount'].'</td>');	

@@ -8,15 +8,15 @@
  * @license         http://www.gnu.org/licenses/gpl.html
  * @platform        WebsiteBaker 2.8.x / WBCE 1.4
  * @requirements    PHP 7 and higher
- * @version         0.2.5.8
- * @lastmodified    November 21, 2025
+ * @version         0.2.5.11
+ * @lastmodified    Oktober 10, 2026
  *
  */
 
 
 $module_directory = 'wbstats';
 $module_name = 'Visitor statistics - WBstats - by Dev4me';
-$module_version = '0.2.5.10';
+$module_version = '0.2.5.11';
 $module_function = 'tool';
 $module_platform = '2.8';
 if(defined('WBCE_VERSION')) {
@@ -30,6 +30,8 @@ $module_icon = 'fa fa-bar-chart';
 
 /**
  * Version history
+ *
+ * 0.2.5.11 - security fixe
  *
  * 0.2.5.10 - Christian M. Stefan
  * - multi-driver SQL corrections (MySQL/SQLite) as preparation for

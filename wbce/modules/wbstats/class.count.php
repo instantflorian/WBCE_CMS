@@ -185,9 +185,11 @@ class counter {
 		if(isset($_SERVER['HTTP_USER_AGENT'])) {
 			$res = $this->parse_user_agent();
 			$this->agent = $this->escapeString($_SERVER['HTTP_USER_AGENT']);
-			$this->os = $res['platform']; // .' '.$res['platform_version'];
-			$this->browser = $res['browser'];
-			$this->browser_version = $res['version'];
+			// os/browser come from a constrained UA regex, but escape them too
+			// (defense in depth — they are concatenated raw into INSERTs).
+			$this->os = $this->escapeString($res['platform']); // .' '.$res['platform_version'];
+			$this->browser = $this->escapeString($res['browser']);
+			$this->browser_version = $this->escapeString($res['version']);
 			/*
 			echo '<!-- ';
 			print_r($res);
@@ -237,7 +239,11 @@ class counter {
 		
 	function getUTM () {
 		if($ref = parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY)) {
-			$p = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+			// $p is embedded (unescaped by the click-id branches) into the UTM
+			// `content` column, so escape it here — the request path is fully
+			// attacker-controlled (SQL injection, CVE-class). The utm_* params
+			// below are escaped individually.
+			$p = $this->escapeString(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 
 			parse_str( $ref, $parms );
 			if(isset($parms['fbclid'])) {
