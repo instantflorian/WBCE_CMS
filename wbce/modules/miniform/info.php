@@ -8,9 +8,10 @@
  * @license         http://www.gnu.org/licenses/gpl.html
  * @platform        WebsiteBaker 2.8.x / WBCE CMS 1.x
  * @requirements    PHP 8.0 and higher
- * @version         0.24.1
- * @lastmodified    August 8, 2026
+ * @version         0.24.2
+ * @lastmodified    October 10, 2026
  *
+ * v0.24.2 - several fixes by Rik v. L.
  * v0.24.1 - multi-driver SQL corrections (MySQL/SQLite) as preparation for
  *           experimental SQLite readiness                                      (Stefanek)
  * v0.24.0 - finish PDO migration (parameterized queries + PDO API)
@@ -39,7 +40,7 @@
 $module_directory   = 'miniform';
 $module_name        = 'MiniForm WBCE CMS Edition';
 $module_function    = 'page';
-$module_version     = '0.24.1';
+$module_version     = '0.24.2';
 $module_platform    = '1.7.0';
 $module_author      = 'Ruud / Dev4me';
 $module_license     = 'GNU General Public License';
