@@ -13,24 +13,24 @@
 </div>
         
 <h2>
-    {% if data.name %}{{ L_('DR_TEXT:MODIFY_DROPLET') }}: <span>{{ data.name }}</span> 
+    {% if data.name %}{{ L_('DR_TEXT:MODIFY_DROPLET') }}: <span>{{ data.name|e }}</span> 
     {% else %}<i class="fa fa-plus"></i> {{ L_('DR_TEXT:ADD_DROPLET') }}
     {% endif %}
 </h2>
 
     <div class="formRow">
         <div class="settingName"><label for="title">{{ L_('TEXT:NAME') }}</label></div>
-        <div class="settingValue"><input type="text" id="title" name="title" value="{{ data.name }}" maxlength="32" required />            
+        <div class="settingValue"><input type="text" id="title" name="title" value="{{ data.name|e }}" maxlength="32" pattern="[A-Za-z0-9_\-]{1,32}" title="{{ L_('DR_TEXT:INVALID_NAME')|e }}" required />            
         </div>
     </div>
         
     <div class="formRow">
         <div class="settingName"><label for="description">{{ L_('TEXT:DESCRIPTION') }}</label></div>
-        <div class="settingValue"><input type="text" id="description" name="description" value="{{ data.description }}" />            
+        <div class="settingValue"><input type="text" id="description" name="description" value="{{ data.description|e }}" />            
         </div>
     </div>
 
-    {% if data.modified_by == 1 %}
+    {% if is_admin %}
     <div class="formRow">
         <div class="settingName"><label>{{ L_('TEXT:ADMIN') }}</label></div>
         <div class="settingValue"> 
@@ -57,13 +57,13 @@
             {% endif %}
             <label for="contentedit">{{ L_('TEXT:CODE') }}</label></div>
         <div class="settingValue">                
-            <textarea name="savecontent" id ="contentedit" data-editor="php" style="height: 450px;" rows="50" cols="120">{{ data.code }}</textarea>&nbsp;
+            <textarea name="savecontent" id ="contentedit" data-editor="php" style="height: 450px;" rows="50" cols="120">{{ data.code|e }}</textarea>&nbsp;
         </div>
     </div>    
     <div class="formRow">
         <div class="settingName"><label for="">{{ L_('TEXT:COMMENTS') }}</label></div>
         <div class="settingValue">            			
-            <textarea name="comments" style="height: 100px;" rows="6" cols="120">{{ data.comments }}</textarea>
+            <textarea name="comments" style="height: 100px;" rows="6" cols="120">{{ data.comments|e }}</textarea>
         </div>
     </div>
         
@@ -73,8 +73,8 @@
         </div>
     </div>
     <div class="buttonsRow">
-        <button class="button ico-cancel" type="button" data-redirect-location="{{ TOOL_URI }}&hilite={{ data.name }}">{{ L_('TEXT:CANCEL') }}</button>
-        {% if data.modified_by == 1 or data.admin_edit == 0 %}
+        <button class="button ico-cancel" type="button" data-redirect-location="{{ TOOL_URI }}&amp;hilite={{ data.name|url_encode }}">{{ L_('TEXT:CANCEL') }}</button>
+        {% if can_edit %}
             <button  class="button ico-save pos-right" name="save" type="submit">{{ L_('TEXT:SAVE') }}</button>
             <button  class="button ico-save-back pos-right" name="save_back" type="submit" data-hide-on-ajax-save>{{ L_('TEXT:SAVE') }} & {{ L_('TEXT:BACK') }}</button>
         {% endif %}
@@ -85,7 +85,7 @@
         'height':     550,
         'toolbar':    true,
         'line_wrap':  true,
-        'ajax_save':  true,
+        'ajax_save':  can_edit,
         'ajax_url':   ajax_url,
         'ajax_data':  {'idKey': idKey},
         'error_line': error_line|default(0)

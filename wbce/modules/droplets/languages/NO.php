@@ -33,6 +33,7 @@ $DR_TEXT['HELP'] = 'Hjelp / Les Meg';
 $DR_TEXT['IMPORT_ERRORS'] = 'Import feil';
 $DR_TEXT['IMPORTED'] = 'Droplet(er) ble importert';
 $DR_TEXT['INVALIDCODE'] = 'Denne Dropleten innholder feil i PHP koden';
+$DR_TEXT['INVALID_NAME'] = 'Ugyldig navn: kun bokstaver, sifre, "_" og "-" er tillatt (maks. 32 tegn).';
 $DR_TEXT['MANAGE_BACKUPS'] = 'Handter Sikkerhetskopier';
 $DR_TEXT['MARKED'] = 'Markert';
 $DR_TEXT['MISSING_ID'] = 'ID is missing or is faulty';

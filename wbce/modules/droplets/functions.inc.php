@@ -27,6 +27,99 @@ if (!is_dir(DROPLETS_BACKUP_DIR)) {
     // Create backup directory if not present
     make_dir(DROPLETS_BACKUP_DIR);
 }
+droplets_protect_backup_dir();
+
+// ── Security helpers ─────────────────────────────────────────────────────────
+// Used by every entry point of this module (tool.php, add/save_droplet.php,
+// the two ajax_*.php endpoints, download_backup.php), so that all of them
+// apply the same rules.
+
+/**
+ * Same rule admin/admintools/tool.php applies before it includes our tool.php:
+ * admins always, everyone else only with the 'droplets_tool' allow entry.
+ */
+function droplets_may_use_tool()
+{
+    $oAdmin = $GLOBALS['admin'];
+    return $oAdmin->isAdmin()
+        || in_array('droplets_tool', (array) $oAdmin->get_session('MODULE_PERMISSIONS'), true);
+}
+
+/**
+ * "Admin" in the sense of the admin_edit / admin_view droplet flags.
+ */
+function droplets_is_admin()
+{
+    return $GLOBALS['admin']->isAdmin();
+}
+
+/**
+ * FTAN check for state-changing actions. Forms send the token in the POST
+ * body, the action links in the overview carry it in the query string
+ * (getFTAN(false)), so either is accepted.
+ */
+function droplets_check_ftan()
+{
+    return $GLOBALS['admin']->checkFTAN('POST') || $GLOBALS['admin']->checkFTAN('GET');
+}
+
+/**
+ * A droplet name is what [[name?...]] calls and also becomes a file name in
+ * exports, so only allow characters that are safe in both places.
+ */
+function droplets_valid_name($sName)
+{
+    return is_string($sName) && preg_match('/^[A-Za-z0-9_\-]{1,32}$/', $sName) === 1;
+}
+
+/**
+ * File-name-safe version of a droplet name, for droplets saved before
+ * droplets_valid_name() was enforced.
+ */
+function droplets_safe_filename($sName)
+{
+    $sSafe = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) $sName);
+    return $sSafe === '' ? 'droplet' : $sSafe;
+}
+
+/**
+ * Full path of a backup file, but only if $sFile is exactly one of the zip
+ * files listed in the backup directory — never a user-supplied path.
+ */
+function droplets_backup_path($sFile)
+{
+    if (!is_string($sFile) || !in_array($sFile, wbce_find_backups(DROPLETS_BACKUP_DIR), true)) {
+        return null;
+    }
+    return DROPLETS_BACKUP_DIR . $sFile;
+}
+
+/**
+ * Unique, unguessable working directory below /temp (exports and imports
+ * briefly put .php files there).
+ */
+function droplets_temp_dir($sPurpose)
+{
+    return WB_PATH . '/temp/droplets_' . $sPurpose . '_' . bin2hex(random_bytes(8)) . '/';
+}
+
+/**
+ * The backup directory lives below /var, which is web-accessible; without
+ * this, every backup zip (= the code of all droplets) can be downloaded by
+ * anyone who guesses its time-stamped name. Downloads go through
+ * download_backup.php instead.
+ */
+function droplets_protect_backup_dir()
+{
+    $sFile = DROPLETS_BACKUP_DIR . '.htaccess';
+    if (is_dir(DROPLETS_BACKUP_DIR) && !file_exists($sFile)) {
+        file_put_contents($sFile,
+            "# Droplets backups: download via modules/droplets/download_backup.php only\n"
+          . "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
+          . "<IfModule !mod_authz_core.c>\n    Order deny,allow\n    Deny from all\n</IfModule>\n"
+        );
+    }
+}
 
 $oTwig = getTwig(dirname(__FILE__) . '/templates');
 
@@ -64,6 +157,10 @@ function wbce_copy_droplet($droplet_id)
         "SELECT * FROM `{TP}mod_droplets` WHERE `id` = ?", [(int) $droplet_id]
     );
     if ($fetch_content === null) {
+        return null;
+    }
+    // a copy reveals the code, so it's subject to admin_view
+    if ((int) $fetch_content['admin_view'] === 1 && !droplets_is_admin()) {
         return null;
     }
 
@@ -115,24 +212,16 @@ function wbce_backup_droplets($list,$filename='backup-droplets',$return_details=
 
     if(!$list || !is_array($list) || !count($list)) { return false; }
 
-    // create temporary directory for exported files
-    $temp_dir = WB_PATH . '/temp/droplets/';
-
-    //  make sure it's empty
-    if(is_dir($temp_dir))
+    // create temporary directory for exported files (unique per call: the
+    // droplets are written into it as .php files)
+    $temp_dir = droplets_temp_dir('export');
+    if(!@mkdir($temp_dir,OCTAL_DIR_MODE,true))
     {
-        rm_full_dir($temp_dir,true);
-    }
-    else
-    {
-        if(!@mkdir($temp_dir,OCTAL_DIR_MODE))
-        {
-            $err = error_get_last();
-            return '<div class="alertbox error">'.
-                   $MESSAGE['MEDIA_DIR_NOT_MADE'].': '.
-                   $err['message'].
-                   '</div>';
-        }
+        $err = error_get_last();
+        return '<div class="alertbox error">'.
+               $MESSAGE['MEDIA_DIR_NOT_MADE'].': '.
+               $err['message'].
+               '</div>';
     }
 
     $details = array();
@@ -141,32 +230,29 @@ function wbce_backup_droplets($list,$filename='backup-droplets',$return_details=
     // write file for each droplet in the list
     foreach(array_values($list) as $droplet)
     {
-        $sFile = $temp_dir . $droplet['name'] . '.php';
+        // never use the stored name as a path as-is: droplets saved before
+        // 2.4.7 could carry "../" or other path characters in their name
+        $sFile = $temp_dir . droplets_safe_filename($droplet['name']) . '.php';
         $fh    = fopen( $sFile, 'w' );
         if (!is_resource($fh)){
+            rm_full_dir($temp_dir);
             return '<div class="alertbox error">'.
                    $DR_TEXT['PACK_ERROR'].
                    '</div>';
         } else {
-        $details[] = $DR_TEXT['SAVING'] . ': ' . $sFile;
-        fwrite( $fh, '//:' . $droplet['description'] . "\n" );
-        fwrite( $fh, '//:' . str_replace("\n"," ",$droplet['comments']) . "\n" );
+        $details[] = $DR_TEXT['SAVING'] . ': ' . htmlspecialchars(basename($sFile));
+        // both header lines must stay single lines, otherwise the rest of
+        // the text would end up in the code part on import
+        fwrite( $fh, '//:' . str_replace(array("\r", "\n"), ' ', $droplet['description']) . "\n" );
+        fwrite( $fh, '//:' . str_replace(array("\r", "\n"), ' ', $droplet['comments']) . "\n" );
         fwrite( $fh, $droplet['code'] );
         fclose( $fh );
         }
     }
 
-    // add current date to filename
-    $filename .= '_' . date( 'Y-m-d-His' );
-
-    // while there's an existing file, add a number to the filename
-    if ( file_exists( WB_PATH.'/temp/'.$filename.'.zip' ) ) {
-        $n = 1;
-        while( file_exists( WB_PATH.'/temp/'.$filename.'_'.$n.'.zip' ) ) {
-            $n++;
-        }
-        $filename .= '_'.$n;
-    }
+    // add current date plus a random part to the filename, so backup
+    // names can't be guessed (and never collide)
+    $filename = droplets_safe_filename($filename) . '_' . date( 'Y-m-d-His' ) . '_' . bin2hex(random_bytes(4));
 
     $details[]  = '<br />' . $DR_TEXT['CREATE_ARCHIVE'] . ': '. $filename;
     $temp_file = DROPLETS_BACKUP_DIR.$filename.'.zip';
@@ -181,7 +267,7 @@ function wbce_backup_droplets($list,$filename='backup-droplets',$return_details=
         $result  = '<div class="alert alert-success">'
                 . $DR_TEXT['BACKUP_CREATED']                
                 . ':<br>'
-                . '<a class="button ico-download" href="'.get_url_from_path($temp_file).'">Download</a>'
+                . '<a class="button ico-download" href="'.get_url_from_path(__DIR__).'/download_backup.php?file='.rawurlencode(basename($temp_file)).'">Download</a>'
                 . '</div>';
     }
 
@@ -249,23 +335,27 @@ function wbce_delete_droplets()
         return false;
     }
 
-    // get the droplet(s) data
+    // get the droplet(s) data; non-admins can't delete admin_edit droplets
     $droplets = array();
     foreach ( $list as $id ) {
         $row = $database->fetchRow("SELECT * FROM `{TP}mod_droplets` WHERE `id` = ?", [(int) $id]);
-        if ($row !== null) {
+        if ($row !== null && ((int) $row['admin_edit'] !== 1 || droplets_is_admin())) {
             $droplets[] = $row;
         }
+    }
+    if (count($droplets) < 1) {
+        return false;
     }
 
     // create a backup
     wbce_backup_droplets( $droplets, 'drop_delete' );
 
-    // delete
-    foreach(array_values($list) as $id)
+    // delete only what was checked (and backed up) above
+    foreach($droplets as $droplet)
     {
-        $database->deleteRow('{TP}mod_droplets', 'id', (int) $id);
+        $database->deleteRow('{TP}mod_droplets', 'id', (int) $droplet['id']);
     }
+    return true;
 }   // end function wbce_delete_droplets()
 
 /**
@@ -294,18 +384,22 @@ function wbce_export_droplets($list,$filename='drop_export',$export_id=0,$return
         return '<div class="drfail">Please mark some Droplets first!</div>';
     }
 
-    // get the droplet(s) data
+    // get the droplet(s) data; an export reveals the code, so non-admins
+    // can't export admin_view droplets
     $droplets = array();
     foreach ( $list as $id ) {
         $row = $database->fetchRow("SELECT * FROM `{TP}mod_droplets` WHERE `id` = ?", [(int) $id]);
-        if ($row !== null) {
+        if ($row !== null && ((int) $row['admin_view'] !== 1 || droplets_is_admin())) {
             $droplets[] = $row;
         }
     }
+    if ( count( $droplets ) < 1 ) {
+        return '<div class="drfail">Please mark some Droplets first!</div>';
+    }
 
     // if there's only a single droplet to export, name the zip-file after this droplet
-    if ( count( $list ) === 1 ) {
-        $filename = 'droplet_'.$droplets[0]['name'];
+    if ( count( $droplets ) === 1 ) {
+        $filename = 'droplet_'.droplets_safe_filename($droplets[0]['name']);
     }
 
     // save
@@ -349,18 +443,18 @@ function wbce_handle_upload()
     $aToTwig = array();
     $return = '';
 
-    if ( isset( $_FILES['userfile'] ) && isset( $_FILES['userfile']['name'] ) )
+    if ( isset( $_FILES['userfile']['tmp_name'] ) && is_uploaded_file( $_FILES['userfile']['tmp_name'] ) )
     {
-        // Set temp vars
-        $temp_dir   = WB_PATH.'/temp/';
-        $temp_file  = $temp_dir . $_FILES['userfile']['name'];
-        $temp_unzip = WB_PATH.'/temp/unzip/';
+        // Set temp vars: our own random names, never the client's file name
+        // (that one landed as-is in the web-accessible /temp before)
+        $temp_file  = WB_PATH.'/temp/droplets_upload_'.bin2hex(random_bytes(8)).'.zip';
+        $temp_unzip = droplets_temp_dir('import');
         $errors     = array();
 
         // Try to upload the file to the temp dir
         if( ! move_uploaded_file( $_FILES['userfile']['tmp_name'], $temp_file ) )
         {
-            echo $DR_TEXT['Upload failed'];
+            echo $DR_TEXT['Upload failed'] ?? 'Upload failed';
        	    return;
         }
 
@@ -370,15 +464,17 @@ function wbce_handle_upload()
         if ( file_exists( $temp_file) ) {
             unlink( $temp_file );
         }
-        rm_full_dir($temp_unzip);
+        if ( is_dir( $temp_unzip ) ) {
+            rm_full_dir($temp_unzip);
+        }
 
         // show errors
         if ( isset( $result['errors'] ) && is_array( $result['errors'] ) && count( $result['errors'] ) > 0 )
         {
             $return = $DR_TEXT['IMPORT_ERRORS']."<br />";
             foreach ( $result['errors'] as $droplet => $error ) {
-                $return .= 'Droplet: ' . $droplet . '<br />'
-                        .  '<span>' .  $error . '</span>';
+                $return .= 'Droplet: ' . htmlspecialchars($droplet) . '<br />'
+                        .  '<span>' .  htmlspecialchars($error) . '</span><br />';
             }
             $oMsgBox->error($return);
         }
@@ -398,16 +494,10 @@ function wbce_list_droplets($bShowDate = false)
 {
     global $admin, $database, $DR_TEXT, $TEXT;
 
-    // Get userid for showing admin only droplets or not
-    $loggedin_user  = ($admin->isInGroup('1') ? 1 : $admin->get_user_id());
-    $loggedin_group = $admin->get_groups_id();
-    $admin_user = $loggedin_user;
-    if ( version_compare(WB_VERSION, '2.8.2', '>=') && WB_VERSION<> "2.8.x" ) {
-          $admin_user = ( ($admin->get_home_folder() == '') && ($admin->isInGroup('1') ) || ($loggedin_user == '1'));
-    } 
-
+    // Show admin_view droplets to admins only (same rule as everywhere else
+    // in this module, see droplets_is_admin())
     $sSql = "SELECT * FROM `{TP}mod_droplets` ";
-    if (!$admin_user) {
+    if (!droplets_is_admin()) {
         $sSql .=" WHERE `admin_view` <> '1'";
     }
     if($bShowDate){
@@ -435,9 +525,10 @@ function wbce_list_droplets($bShowDate = false)
                     $modified_user   = $TEXT['UNKNOWN'];
                     $modified_userid = 0;
                 }
-                $comments = str_replace(array("\r\n", "\n", "\r"), '<br />', $droplet['comments']);
+                // Twig autoescape is off: escape the stored text before adding our own markup
+                $comments = str_replace(array("\r\n", "\n", "\r"), '<br />', htmlspecialchars($droplet['comments']));
                 if (!strpos($comments,"[[")) {
-                    $comments = "Use: [[".$droplet['name']."]]<br />".$comments;
+                    $comments = "Use: [[".htmlspecialchars($droplet['name'])."]]<br />".$comments;
                 }
                 $comments   = str_replace(array("[[", "]]"), array('<b>[[',']]</b>'), $comments);
                 $droplet['valid_code'] = check_droplet_syntax($droplet['id']);
@@ -666,12 +757,15 @@ if(!function_exists('renderTabs')){
                 if (false !== ($dh = opendir($sTempDir))) {
                         while (false !== ($sFile = readdir($dh))) {
                                 // read trough all the files in temp directory
-                                if ($sFile != "." && $sFile != "..") {
-                                        $feedback                       = importDropletFromFile($sFile, $sTempDir); // use import droplet function
-                                        $imports[$feedback['imported']] = $feedback['imported'];
+                                if ($sFile != "." && $sFile != ".." && is_file($sTempDir . '/' . $sFile)) {
+                                        $feedback = importDropletFromFile($sFile, $sTempDir); // use import droplet function
+                                        if (!isset($feedback['imported'])) {
+                                                continue; // not a droplet file
+                                        }
                                         if (isset($feedback['error'])) {
                                                 $errors[$feedback['imported']] = $feedback['error'];
                                         } else {
+                                                $imports[$feedback['imported']] = $feedback['imported'];
                                                 $count++;
                                         }
                                 }
@@ -738,7 +832,40 @@ function importDropletFromFile($sFilename = '', $sDirPath = '')
             '<?'
         );
         $code  = str_replace($tags, '', $code);
+        $aReturn['imported'] = $name;
+
+        // The name becomes the [[call]] and a file name in later exports
+        if (!droplets_valid_name($name)) {
+            $aReturn['error'] = L_('DR_TEXT:INVALID_NAME');
+            return $aReturn;
+        }
+
         // Already in the DB?
+        $aExisting = $database->fetchRow(
+            "SELECT `id`, `code`, `admin_edit` FROM `{TP}mod_droplets` WHERE `name` = ?", [$name]
+        );
+        if ($aExisting !== null && (int) $aExisting['admin_edit'] === 1 && !droplets_is_admin()) {
+            $aReturn['error'] = L_('MESSAGE:GENERIC_SECURITY_ACCESS');
+            return $aReturn;
+        }
+
+        // Same checks as save_droplet.php / ajax_save_droplet.php, so an
+        // import can't bring in code the editor would refuse. Code that is
+        // byte-identical to what's already stored for this droplet isn't new
+        // code, so restoring an unchanged backup keeps working even for older
+        // droplets that predate CodeVet.
+        if ($aExisting === null || $aExisting['code'] !== $code) {
+            $syntaxError = CodeVet::checkSyntax($code);
+            $findings    = $syntaxError === null ? CodeVet::scan($code, CodeVetProfile::Droplet) : [];
+            if ($syntaxError !== null || $findings !== []) {
+                if ($findings !== []) {
+                    CodeVet::logEvent('droplet_import_blocked', CodeVetProfile::Droplet, $findings, ['name' => $name]);
+                }
+                $aReturn['error'] = L_('DR_TEXT:INVALIDCODE') . ': ' . ($syntaxError ?? $findings[0]->message);
+                return $aReturn;
+            }
+        }
+
         $aUpdate = [
             'name'          => $name,
             'code'          => $code,
@@ -746,17 +873,17 @@ function importDropletFromFile($sFilename = '', $sDirPath = '')
             'modified_when' => time(),
             'modified_by'   => (int) $admin->get_user_id(),
             'active'        => 1,
-            'admin_edit'    => 0,
-            'admin_view'    => 0,
             'show_wysiwyg'  => 0,
             'comments'      => $usage,
         ];
-        $foundId = $database->fetchValue("SELECT `id` FROM `{TP}mod_droplets` WHERE `name` = ?", [$name]);
-        if ($foundId !== '') {
-            $aUpdate['id'] = (int) $foundId;
+        if ($aExisting !== null) {
+            // keep the admin_edit / admin_view flags of the existing droplet
+            $aUpdate['id'] = (int) $aExisting['id'];
+        } else {
+            $aUpdate['admin_edit'] = 0;
+            $aUpdate['admin_view'] = 0;
         }
         $database->upsertRow('{TP}mod_droplets', 'id', $aUpdate);
-        $aReturn['imported'] = $name;
         if ($database->hasError()) {
             $aReturn['error'] = $database->getError();
         }

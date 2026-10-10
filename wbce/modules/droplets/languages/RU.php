@@ -33,6 +33,7 @@ $DR_TEXT['HELP'] = 'Помощь (Англ.)';
 $DR_TEXT['IMPORT_ERRORS'] = 'Ошибка имспорта';
 $DR_TEXT['IMPORTED'] = 'Droplet успешно импортирован';
 $DR_TEXT['INVALIDCODE'] = 'Ошибка в коде';
+$DR_TEXT['INVALID_NAME'] = 'Недопустимое имя: разрешены только буквы, цифры, «_» и «-» (не более 32 символов).';
 $DR_TEXT['MANAGE_BACKUPS'] = 'Управление архивацией';
 $DR_TEXT['MARKED'] = 'действие с выделенным(и)';
 $DR_TEXT['MISSING_ID'] = 'ID is missing or is faulty';

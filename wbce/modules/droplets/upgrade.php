@@ -62,6 +62,18 @@ if(file_exists($sOpfFile = WB_PATH.'/modules/outputfilter_dashboard/functions.ph
     && opf_move_up_before('Droplets');  // move up to the top
  }
  
+ // since 2.4.7: close the backup directory (below the web-accessible /var)
+ // for direct downloads; same .htaccess as droplets_protect_backup_dir() in
+ // functions.inc.php writes, which isn't loaded here
+$sBackupDir = WB_PATH . '/var/modules/droplets/export/';
+if (is_dir($sBackupDir) && !file_exists($sBackupDir . '.htaccess')) {
+    file_put_contents($sBackupDir . '.htaccess',
+        "# Droplets backups: download via modules/droplets/download_backup.php only\n"
+      . "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
+      . "<IfModule !mod_authz_core.c>\n    Order deny,allow\n    Deny from all\n</IfModule>\n"
+    );
+}
+
  // remove files and directories that are not needed any longer
 $obsoleteFilesAndDirs = [
     '/js',           // obsolete jquery plugin (tablesorter) and mdcr.js (moved to OpF long ago)

@@ -28,6 +28,7 @@ $DR_TEXT['HELP'] = 'Hj&aelig;lp';
 $DR_TEXT['IMPORT_ERRORS'] = 'Import errors';
 $DR_TEXT['IMPORTED'] = 'Droplet(s) imported';
 $DR_TEXT['INVALIDCODE'] = 'Denne droplet indholder ugyldig PHP kode';
+$DR_TEXT['INVALID_NAME'] = 'Ugyldigt navn: kun bogstaver, tal, "_" og "-" er tilladt (maks. 32 tegn).';
 $DR_TEXT['MANAGE_BACKUPS'] = 'Manage Backups';
 $DR_TEXT['MARKED'] = 'Marked';
 $DR_TEXT['MISSING_ID'] = 'ID is missing or is faulty';

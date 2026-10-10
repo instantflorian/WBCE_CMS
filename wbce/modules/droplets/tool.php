@@ -31,6 +31,10 @@ I::insertCssFile($aCssFiles, 'HEAD TOP+');
 global $module_version;
 require_once dirname(__FILE__).'/functions.inc.php';
 
+// FTAN as a query-string part ("name=value") for the action links in the
+// templates (delete, copy, restore, backup, ...), checked below
+$oTwig->addGlobal('FTAN_GET', $admin->getFTAN(false));
+
 // removes empty entries from the table; this may happen if someone adds a
 // droplet but does not save any changes
 if (!$admin->get_get("do")) {
@@ -67,13 +71,32 @@ if ( isset($_GET['copy']) )
     }
 } elseif (isset($_GET['recover'])){
     // ----- recover from backup -----
-    if (file_exists( $sRecoverFile = __DIR__.'/export/'.$_GET['recover'])){
+    // only a zip that is actually listed in the backup directory
+    // (DROPLETS_BACKUP_DIR, where the backups are written), never a path
+    $sRecoverFile = droplets_backup_path($_GET['recover']);
+    if ($sRecoverFile !== null){
         $_GET['do'] = 'recover';
     }
 }
 
 $aToTwig['TABS'] = renderTabs('overview');
 $sToolURI = ADMIN_URL.'/admintools/tool.php?tool='.ADMIN_TOOL_DIR;
+
+// ----- CSRF: every action that changes something needs a valid FTAN -----
+// (the upload and manage_backups tabs only change something when a file is
+// posted / a backup is to be deleted; otherwise they just show a page)
+$sDo = isset($_GET['do']) ? (string) $_GET['do'] : '';
+if (in_array($sDo, array('show_date', 'export', 'delete', 'recover', 'copy', 'backup_droplets'), true)
+    && !droplets_check_ftan()) {
+    $oMsgBox->error($MESSAGE['GENERIC_SECURITY_ACCESS']);
+    unset($_GET['do']);
+} elseif ($sDo === 'upload' && !empty($_FILES['userfile']['name']) && !droplets_check_ftan()) {
+    $oMsgBox->error($MESSAGE['GENERIC_SECURITY_ACCESS']);
+    $_FILES = array();
+} elseif ($sDo === 'manage_backups' && isset($_GET['del']) && !droplets_check_ftan()) {
+    $oMsgBox->error($MESSAGE['GENERIC_SECURITY_ACCESS']);
+    unset($_GET['del']);
+}
 // action
 if(isset($_GET['do']))
 {
@@ -118,18 +141,18 @@ if(isset($_GET['do']))
         
 
         // ----- recover -----
-         case 'recover':        
-            $result = importDropletFromZip( 
-                    $sRecoverFile, 
-                    WB_PATH.'/temp/unzip/' 
+         case 'recover':
+            $result = importDropletFromZip(
+                    $sRecoverFile,
+                    droplets_temp_dir('restore')
                 );
                 // show errors
-                if ( isset( $result['errors'] ) && is_array( $result['errors'] ) 
+                if ( isset( $result['errors'] ) && is_array( $result['errors'] )
                         && count( $result['errors'] ) > 0 ) {
                     $sErrors = '';
                     foreach ( $result['errors'] as $droplet => $error ) {
-                        $sErrors .= 'Droplet: '.$droplet.'<br />'
-                                .  '<b>- '.$error.'</b>';
+                        $sErrors .= 'Droplet: '.htmlspecialchars($droplet).'<br />'
+                                .  '<b>- '.htmlspecialchars($error).'</b><br />';
                     }
                     $oMsgBox->error($sErrors);
                 } else {
@@ -146,6 +169,8 @@ if(isset($_GET['do']))
             if(is_numeric($iID)){
                 $oMsgBox->success('<b>'.$DR_TEXT['DUPLICATE'].'</b><br>'.strtolower($TEXT['SUCCESS']).'!');
                 $oMsgBox->redirect($sToolURI.'&do=modify&droplet_id='.$iID);
+            } else {
+                $oMsgBox->error($MESSAGE['GENERIC_SECURITY_ACCESS']);
             }
             break;
             
@@ -162,6 +187,15 @@ if(isset($_GET['do']))
                 "SELECT * FROM `{TP}mod_droplets` WHERE `id` = ?", [$droplet_id]
             );
 
+            // admin_view / admin_edit are enforced here and in the save
+            // endpoints, not only by hiding things in modify.twig
+            $bIsAdmin = droplets_is_admin();
+            if ($data === null || ((int) $data['admin_view'] === 1 && !$bIsAdmin)) {
+                $oMsgBox->error($MESSAGE['GENERIC_SECURITY_ACCESS']);
+                break;
+            }
+            $bCanEdit = $bIsAdmin || (int) $data['admin_edit'] !== 1;
+
             // A blocked save (CodeVet or syntax error) stashes the unsaved
             // edit here instead of discarding it — one-shot read, cleared
             // immediately so it never leaks into a later, unrelated visit.
@@ -170,12 +204,12 @@ if(isset($_GET['do']))
             if (isset($_SESSION['codevet_draft'][$draftKey])) {
                 $draft = $_SESSION['codevet_draft'][$draftKey];
                 unset($_SESSION['codevet_draft'][$draftKey]);
-                $data = array_merge($data ?: [], [
+                $data = array_merge($data, [
                     'name'        => $draft['name'],
                     'description' => $draft['description'],
                     'active'      => $draft['active'],
-                    'admin_edit'  => $draft['admin_edit'],
-                    'admin_view'  => $draft['admin_view'],
+                    'admin_edit'  => $bIsAdmin ? $draft['admin_edit'] : $data['admin_edit'],
+                    'admin_view'  => $bIsAdmin ? $draft['admin_view'] : $data['admin_view'],
                     'code'        => $draft['code'],
                     'comments'    => $draft['comments'],
                 ]);
@@ -190,6 +224,8 @@ if(isset($_GET['do']))
                     'idKey'      => $admin->getIDKEY($droplet_id),
                     'ajax_url'   => WB_URL . '/modules/droplets/ajax_save_droplet.php',
                     'error_line' => $errorLine,
+                    'is_admin'   => $bIsAdmin,
+                    'can_edit'   => $bCanEdit,
                 ],
                 'modify',
                 true
@@ -198,7 +234,10 @@ if(isset($_GET['do']))
 
         // ----- create full backup -----
         case 'backup_droplets':
-            $list = $database->fetchAll("SELECT * FROM `{TP}mod_droplets`");
+            // a backup reveals the code: admin_view droplets for admins only
+            $list = $database->fetchAll(
+                "SELECT * FROM `{TP}mod_droplets`" . (droplets_is_admin() ? "" : " WHERE `admin_view` <> 1")
+            );
             // backup
             $aToTwig['content'] = wbce_backup_droplets($list);
             $aToTwig['more_header_links'] = $DR_TEXT['BACKUP'];
@@ -214,9 +253,11 @@ if(isset($_GET['do']))
             // file to delete?
             if ( isset( $_GET['del'] ) ) {
                 if ( $_GET['del'] !== 'all' ) {
-                    if ( file_exists( $sFile = DROPLETS_BACKUP_DIR.$_GET['del'])) {
+                    // only a zip that is actually listed in the backup directory, never a path
+                    $sFile = droplets_backup_path($_GET['del']);
+                    if ( $sFile !== null ) {
                         if(unlink($sFile)){
-                            $oMsgBox->success('<b>'.$_GET['del'].'</b><br>'.$MESSAGE['MEDIA_DELETED_FILE']);
+                            $oMsgBox->success('<b>'.htmlspecialchars(basename($sFile)).'</b><br>'.$MESSAGE['MEDIA_DELETED_FILE']);
                         }
                     }
                 } else {

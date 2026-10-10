@@ -28,6 +28,7 @@ $DR_TEXT['HELP'] = 'Help / Readme';
 $DR_TEXT['IMPORT_ERRORS'] = 'Fouten tijdens import';
 $DR_TEXT['IMPORTED'] = 'Droplet(s) geïmporteerd';
 $DR_TEXT['INVALIDCODE']	= 'Deze Droplet heeft ongeldige PHP code';
+$DR_TEXT['INVALID_NAME'] = 'Ongeldige naam: alleen letters, cijfers, "_" en "-" zijn toegestaan (max. 32 tekens).';
 $DR_TEXT['MANAGE_BACKUPS'] = 'Beheer Backups';
 $DR_TEXT['MARKED'] = 'GemMarkeerd';
 $DR_TEXT['MISSING_ID'] = 'ID is missing or is faulty';

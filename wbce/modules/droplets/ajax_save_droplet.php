@@ -22,10 +22,12 @@
 require_once '../../config.php';
 
 $admin = new Admin('admintools', 'admintools', false);
+require_once __DIR__ . '/functions.inc.php';
+Lang::loadLanguage(__DIR__);
 header('Content-Type: application/json; charset=utf-8');
 
-// ── Permission check ──────────────────────────────────────────────────────────
-if (!$admin->get_permission('admintools')) {
+// ── Permission check (same tool right admintools/tool.php checks) ────────────
+if (!$admin->get_permission('admintools') || !droplets_may_use_tool()) {
     http_response_code(403);
     (new Alerts(false))->toast('MESSAGE:GENERIC_SECURITY_ACCESS', 'error');
     exit(json_encode(['ok' => false]));
@@ -52,10 +54,29 @@ if ((int) ($_POST['droplet_id'] ?? -1) !== $droplet_id) {
     exit(json_encode(['ok' => false]));
 }
 
+// ── admin_edit / admin_view — enforced here, not only in modify.twig ─────────
+$aExisting = $database->fetchRow(
+    "SELECT `admin_edit`, `admin_view` FROM `{TP}mod_droplets` WHERE `id` = ?", [$droplet_id]
+);
+$bIsAdmin = droplets_is_admin();
+if ($aExisting === null || (!$bIsAdmin && (int) $aExisting['admin_edit'] === 1)) {
+    http_response_code(403);
+    (new Alerts(false))->toast('MESSAGE:GENERIC_SECURITY_ACCESS', 'error');
+    exit(json_encode(['ok' => false]));
+}
+// only admins may change the admin flags themselves
+$iAdminEdit = $bIsAdmin ? (int) $admin->get_post('admin_edit') : (int) $aExisting['admin_edit'];
+$iAdminView = $bIsAdmin ? (int) $admin->get_post('admin_view') : (int) $aExisting['admin_view'];
+
 $sName = $admin->get_post('title');
 if ($sName === '') {
     http_response_code(422);
     (new Alerts(false))->toast($MESSAGE['GENERIC_FILL_IN_ALL'] ?? 'Please fill in all fields', 'error');
+    exit(json_encode(['ok' => false]));
+}
+if (!droplets_valid_name($sName)) {
+    http_response_code(422);
+    (new Alerts(false))->toast('DR_TEXT:INVALID_NAME', 'error');
     exit(json_encode(['ok' => false]));
 }
 
@@ -96,8 +117,8 @@ $aUpdate = [
     'id'            => $droplet_id,
     'name'          => $sName,
     'active'        => (int) $admin->get_post('active'),
-    'admin_view'    => (int) $admin->get_post('admin_view'),
-    'admin_edit'    => (int) $admin->get_post('admin_edit'),
+    'admin_view'    => $iAdminView,
+    'admin_edit'    => $iAdminEdit,
     'show_wysiwyg'  => (int) $admin->get_post('show_wysiwyg'),
     'description'   => $admin->get_post('description'),
     'code'          => $code,

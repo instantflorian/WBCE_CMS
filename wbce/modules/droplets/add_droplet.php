@@ -13,7 +13,10 @@
 require_once '../../config.php';
 
 $admin = new Admin( 'admintools', 'admintools');
-if ( $admin->get_permission( 'admintools' ) == true )
+require_once __DIR__ . '/functions.inc.php';
+// same tool right admintools/tool.php checks; the "Add Droplet" link in
+// list.twig carries the FTAN in its query string
+if ( $admin->get_permission( 'admintools' ) == true && droplets_may_use_tool() && $admin->checkFTAN('GET') )
 {
     $admintool_link   = ADMIN_URL . '/admintools/index.php';
     $module_edit_link = ADMIN_URL . '/admintools/tool.php?tool=droplets';
@@ -42,7 +45,7 @@ if ( $admin->get_permission( 'admintools' ) == true )
 }
 else
 {
-    die( header('Location: '.WB_URL) );
+    $admin->print_error( $MESSAGE['GENERIC_SECURITY_ACCESS'], ADMIN_URL . '/admintools/tool.php?tool=droplets' );
 }
 
 // Print admin footer

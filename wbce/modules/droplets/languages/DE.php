@@ -32,6 +32,7 @@ $DR_TEXT['HELP'] = 'Hilfe';
 $DR_TEXT['IMPORT_ERRORS'] = 'Fehler beim Import';
 $DR_TEXT['IMPORTED'] = 'Droplet(s) importiert';
 $DR_TEXT['INVALIDCODE']	= 'Dieses Droplet enth&auml;lt ung&uuml;ltigen PHP code';
+$DR_TEXT['INVALID_NAME'] = 'Ungültiger Name: nur Buchstaben, Ziffern, "_" und "-" sind erlaubt (max. 32 Zeichen).';
 $DR_TEXT['MANAGE_BACKUPS'] = 'Backups';
 $DR_TEXT['MARKED'] = 'Markierte';
 $DR_TEXT['MISSING_ID'] = 'ID fehlt oder ist fehlerhaft';
