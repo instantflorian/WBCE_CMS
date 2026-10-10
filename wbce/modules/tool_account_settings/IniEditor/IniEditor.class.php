@@ -161,15 +161,18 @@ class IniEditor {
             if (!file_exists($this->sBackupDir)) {
                 mkdir($this->sBackupDir, 0755);
             }
+            // Use the configured target file, never a request-supplied path:
+            // reading file_get_contents($_REQUEST['ini_file']) would be an
+            // arbitrary file read if backups were ever enabled.
             $backup = file_put_contents(
-                $this->sBackupDir.'/'.basename($this->backupFilename($_REQUEST['ini_file'])).'_'.date('Ymd_His'), 
-                file_get_contents($_REQUEST['ini_file'])
+                $this->sBackupDir.'/'.basename($this->backupFilename($this->sIniFile)).'_'.date('Ymd_His'),
+                file_get_contents($this->sIniFile)
             );
         }
 
         $backup = true;
         if ($backup) {
-            $aVals = $this->preg_grep_keys('/ini#.*$/', $_REQUEST);
+            $aVals = $this->preg_grep_keys('/ini#.*$/', $_POST);
             $aSave = array();
             foreach ($aVals as $key => $val) {
                 $conf = explode('#', $key);
@@ -192,7 +195,7 @@ class IniEditor {
             $sPhpPrefix = '';
             $sPhpPrefix .=  ";<?php  die('Illegal file access'); ?>".PHP_EOL;
             $sPhpPrefix .=  ";###########################################".PHP_EOL;
-            $sPhpPrefix .=  ";#   ".basename($_REQUEST['ini_file'])."".PHP_EOL;
+            $sPhpPrefix .=  ";#   ".basename($this->sIniFile)."".PHP_EOL;
             $sPhpPrefix .=  ";#   saved: ".date(DATE_RFC822)."".PHP_EOL;
             $sPhpPrefix .=  ";###########################################". PHP_EOL . PHP_EOL . PHP_EOL;
 
@@ -215,10 +218,19 @@ class IniEditor {
 
     // get the form from the file
     public function getForm() {
+            global $admin;
             $conf = parse_ini_file($this->sIniFile, true);
             $sToHtml = '<div class="editor-container cpForm">';
-            if (isset($_REQUEST['save_ini_form'])) {
-                $sToHtml .= $this->saveForm();
+            // Save only on a POST carrying a valid FTAN (CSRF token). The original
+            // code triggered on $_REQUEST, so a cross-site GET (sent with the session
+            // cookie under SameSite=Lax) could overwrite the account config without a
+            // token. POST-only + FTAN closes that.
+            if (isset($_POST['save_ini_form'])) {
+                if (isset($admin) && method_exists($admin, 'checkFTAN') && !$admin->checkFTAN()) {
+                    (new Alerts(useSession: false))->error('MESSAGE:GENERIC_SECURITY_ACCESS');
+                } else {
+                    $sToHtml .= $this->saveForm();
+                }
             }
 
             if ($this->bShowFileSrc) {
@@ -235,6 +247,7 @@ class IniEditor {
             $sToHtml .= $this->getScripts();
 
             $sToHtml .= '<form method="post">
+            '.((isset($admin) && method_exists($admin, 'getFTAN')) ? $admin->getFTAN() : '').'
             <input type="hidden" name="save_ini_form" value="1"/>
             <input type="hidden" name="ini_file" value="'.str_replace(WB_PATH, 'BASE_PATH', $this->sIniFile).'"/>'; //prevent PATH from being seen
 

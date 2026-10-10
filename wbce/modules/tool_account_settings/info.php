@@ -16,9 +16,16 @@ $core = true;
 $module_directory   = 'tool_account_settings';
 $module_name        = 'Account and Signups configuration';
 $module_function    = 'tool';
-$module_version     = '0.7.2';
+$module_version     = '0.7.3';
 $module_platform    = '1.4.0';
 $module_author      = 'Christian M. Stefan';
 $module_icon        = 'fa fa-user-circle-o';
 $module_license     = 'GNU General Public License';
 $module_description = 'Set up the registration process (signup) and have an overview of all users registered to the system.';
+
+/**
+ * Changelog
+ *
+ * 0.7.3 (Rik van Loenhout, 2026-10-10)
+ *   - security
+ */
