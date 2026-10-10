@@ -101,6 +101,15 @@ try {
             //small characters
             $imagename = strtolower($imagename) ;
 
+            // Restrict to image extensions — same whitelist as mod_nwi_img_upload().
+            // Without this, upload.php accepts any extension (e.g. .php); the file is
+            // cleaned up moments later by the thumbnail step, but exists briefly in the
+            // web-accessible media dir in between.
+            $upload_suffix = strtolower(pathinfo($imagename, PATHINFO_EXTENSION));
+            if (!in_array($upload_suffix, $allowed_suffixes, true)) {
+                exit(json_encode(array('files' => array(array('name' => $picture['name'], 'error' => 'invalid file type')))));
+            }
+
             //            if file exists, find new name by adding a number
             if (file_exists($mod_nwi_file_dir.$imagename)) {
                 $num = 1;
