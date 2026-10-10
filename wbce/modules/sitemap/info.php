@@ -13,7 +13,7 @@
 $module_directory = 'sitemap';
 $module_name      = 'Sitemap';
 $module_function  = 'page';
-$module_version   = '4.1.1';
+$module_version   = '4.1.2';
 $module_platform  = '1.4.0';
 $module_author    = 'Ryan Djurovich, Frank Schoep, Woudloper, Ruebenwurzel, Rob Smith, Mouring Kolhoff, Michael Milette, Dietrich Roland Pehlke, Christian M. Stefan (Stefanek) (last)';
 $module_license   = 'GNU General Public License';
@@ -25,6 +25,11 @@ $module_description = 'This module allows you to easily create a sitemap. You ca
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     DEVELOPMENT HISTORY (Change Log):
 	
+    v.4.1.2 Rik van Loenhout
+            security: added FTAN (CSRF token) to the show_settings toggle in
+            modify.php, which was a state-changing GET write without one.
+            See _docs/wbce/sitemap/security-fixes-4.1.2.md
+
     v.4.1.1 Christian M. Stefan (Stefanek)
             multi-driver SQL corrections (MySQL/SQLite) as preparation for
             experimental SQLite readiness

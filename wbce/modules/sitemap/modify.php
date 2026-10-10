@@ -27,7 +27,11 @@ if(LANGUAGE_LOADED) {
 //
 //	Toggle Settings View
 //
-if(isset($_GET['show_settings']) && in_array($_GET['show_settings'], array(1,0))){
+// The show_settings toggle is a state-changing GET, so it needs a CSRF token
+// (FTAN) just like save.php. Without it this is a GET write a cross-site page
+// could trigger. checkFTAN('GET') validates the token carried in the toggle
+// link below; an absent/invalid token simply leaves the flag unchanged.
+if(isset($_GET['show_settings']) && in_array($_GET['show_settings'], array(1,0)) && $admin->checkFTAN('GET')){
 	if(isset($_GET['page_id']) && $_GET['page_id'] == $page_id){
 		if(isset($_GET['section_id']) && $_GET['section_id'] == $section_id){
 			$database->upsertRow('{TP}mod_sitemap', 'section_id', [
@@ -161,8 +165,8 @@ else {$show_hidden='';}
 					$TEXT['TOGGLE_VIEW'] = $TEXT['HIDE'];	
 					$toggle = 0;			
 				}			
-				$sLink = ADMIN_URL."/pages/modify.php?page_id=%d&section_id=%d&show_settings=%d#%s";
-				$sLink = sprintf($sLink, $page_id, $section_id, $toggle, SEC_ANCHOR.$section_id);
+				$sLink = ADMIN_URL."/pages/modify.php?page_id=%d&section_id=%d&show_settings=%d&%s#%s";
+				$sLink = sprintf($sLink, $page_id, $section_id, $toggle, $admin->getFTAN(false), SEC_ANCHOR.$section_id);
 				?>
 				<a href="<?=$sLink?>">
 					<?=$SMTEXT['LSETTINGS']." ".strtolower($TEXT['TOGGLE_VIEW'])?>
