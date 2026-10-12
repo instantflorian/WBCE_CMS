@@ -394,6 +394,7 @@ $mergedUploadBlocklist   = array_unique(array_merge($currentUploadBlocklist, $re
 Settings::set('rename_files_on_upload', implode(',', $mergedUploadBlocklist));
 Settings::set('sec_anchor',                  'wbce_', false);
 Settings::set('redirect_timer',              '1500', false);
+Settings::set('wysiwyg_editor',              'tinymce_wbce', false);
 Settings::set('mediasettings',               '', false);
 Settings::set('wb_secform_secret',           bin2hex(random_bytes(12)), false);
 Settings::set('wb_secform_secrettime',       '86400', false);
