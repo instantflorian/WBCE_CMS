@@ -490,7 +490,16 @@ function mod_nwi_img_upload($post_id,$is_preview_image=false)
     $section_id = intval($post_data['section_id']);
 
     // get settings
-    $settings = mod_nwi_settings_get($section_id);
+   $query_sid = $database->query(sprintf(
+        "SELECT * FROM `%smod_news_img_posts` " .
+        "WHERE `post_id`=%d ",
+        TABLE_PREFIX,intval($post_id)
+    ));
+	 while ($row = $query_sid->fetchRow()) {
+		 $ssid=$row['section_id'];
+	 }
+
+    $settings = mod_nwi_settings_get($ssid);
 
     $settings['imgmaxsize'] = intval($settings['imgmaxsize']);
     $iniset = ini_get('upload_max_filesize');
