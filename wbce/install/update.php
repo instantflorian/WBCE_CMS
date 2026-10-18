@@ -388,7 +388,7 @@ Settings::set('er_level',                    'E3');
 // conditional insert-only set — on upgrades this key already exists, so
 // Settings::set(..., false) would silently no-op and never add newly
 // required entries (e.g. "tpl", closing an elFinder upload bypass).
-$requiredUploadBlocklist = ['ph.*?', 'cgi', 'pl', 'pm', 'exe', 'com', 'bat', 'pif', 'cmd', 'src', 'asp', 'aspx', 'js', 'lnk', 'inc', 'tpl'];
+$requiredUploadBlocklist = ['ph.*?', 'cgi', 'pl', 'pm', 'exe', 'com', 'bat', 'pif', 'cmd', 'src', 'asp', 'aspx', 'js', 'lnk', 'inc', 'tpl','html','htm','xhtml','xht','shtml','svg','svgz','xml','xsl','xslt'];
 $currentUploadBlocklist  = array_filter(array_map('trim', explode(',', (string) Settings::get('rename_files_on_upload', ''))));
 $mergedUploadBlocklist   = array_unique(array_merge($currentUploadBlocklist, $requiredUploadBlocklist));
 Settings::set('rename_files_on_upload', implode(',', $mergedUploadBlocklist));
